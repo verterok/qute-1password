@@ -176,7 +176,9 @@ class OnePass:
             if arguments.cache_session:
                 with open(SESSION_PATH, "w") as handler:
                     handler.write(session_id)
+                    handler.flush()
                 os.chmod(SESSION_PATH, 0o640)
+
             return session_id
 
     @classmethod
@@ -189,7 +191,14 @@ class OnePass:
             # op sessions last 30 minutes, check if still valid
             creation_time = datetime.fromtimestamp(os.stat(SESSION_PATH).st_ctime)
             if (datetime.now() - creation_time) < SESSION_DURATION:
-                return open(SESSION_PATH, "r").read()
+                session_token = open(SESSION_PATH, "r").read()
+                # only return if there is something in the session file
+                # if it's empty unlink the session file and force a re-login
+                if session_token.strip():
+                    return session_token
+                else:
+                    # session invalid
+                    os.unlink(SESSION_PATH)
             else:
                 # Session expired
                 os.unlink(SESSION_PATH)
